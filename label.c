@@ -14,17 +14,61 @@ static void label_measure(widget_t *w, wl_theme_t *theme) {
 
 static void label_draw(widget_t *w, wl_canvas_t *canvas, wl_theme_t *theme) {
     label_data_t *d = w->data;
-    if (!d->text) return;
-    double s = theme->scale;
+    if (!d->text || !theme->font) return;
 
-    int x        = (int)(w->x * s);
-    int y        = (int)(w->y * s);
-    int wh       = (int)(w->h * s);
-    int baseline = y + wh / 2 + (int)((theme->padding / 2 + 2) * s);
+    double s        = theme->scale;
+    int x           = (int)(w->x * s);
+    int y           = (int)(w->y * s);
+    int ww          = (int)(w->w * s);
+    int wh          = (int)(w->h * s);
+    int baseline    = y + wh / 2 + (int)((theme->padding / 2 + 2) * s);
+    int text_x      = x + (int)(theme->padding * s);
+    int max_w       = ww - (int)(theme->padding * 2 * s);
 
-    wl_draw_text(canvas, theme->font,
-                 x + (int)(theme->padding * s), baseline,
-                 d->text, theme->text);
+    /* check if text fits */
+    int text_w = wl_text_width(theme->font, d->text);
+
+    if (text_w <= max_w || max_w <= 0) {
+        /* fits — draw normally */
+        wl_draw_text(canvas, theme->font, text_x, baseline, d->text, theme->text);
+        return;
+    }
+
+    /* doesn't fit — truncate with ellipsis */
+    int ellipsis_w = wl_text_width(theme->font, "...");
+    int avail_w    = max_w - ellipsis_w;
+    if (avail_w <= 0) {
+        wl_draw_text(canvas, theme->font, text_x, baseline, "...", theme->text);
+        return;
+    }
+
+    /* find how many bytes fit within avail_w */
+    char buf[4096];
+    int  len  = strlen(d->text);
+    int  pos  = 0;
+    int  prev = 0;
+
+    while (pos < len) {
+        /* advance one utf-8 char */
+        int next = pos + 1;
+        while (next < len && ((unsigned char)d->text[next] & 0xC0) == 0x80)
+            next++;
+
+        /* measure up to next */
+        memcpy(buf, d->text, next);
+        buf[next] = '\0';
+        if (wl_text_width(theme->font, buf) > avail_w)
+            break;
+
+        prev = next;
+        pos  = next;
+    }
+
+    /* build truncated string */
+    memcpy(buf, d->text, prev);
+    strcpy(buf + prev, "...");
+
+    wl_draw_text(canvas, theme->font, text_x, baseline, buf, theme->text);
 }
 
 static void label_destroy(widget_t *w) {
