@@ -23,3 +23,4 @@ void         waylandui_run(waylandui_t *ui);
 void         waylandui_destroy(waylandui_t *ui);
 void waylandui_on_key(waylandui_t *ui, wl_key_fn fn, void *userdata);
 void waylandui_on_mouse_button(waylandui_t *ui, wl_mouse_button_fn fn, void *userdata);
+void waylandui_on_unhandled_key(waylandui_t *ui, wl_key_fn fn, void *userdata);

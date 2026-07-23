@@ -6,6 +6,8 @@ struct waylandui {
     wl_font_t  *font;
     wl_theme_t  theme;
     widget_t   *root;
+     wl_key_fn   fallback_key_fn;
+    void       *fallback_key_userdata;
     double      scale;
 };
 
@@ -22,8 +24,13 @@ static void draw_cb(wl_canvas_t *canvas) {
 static void key_cb(wl_key_event_t *e, void *userdata) {
     waylandui_t *ui = userdata;
     if (!ui->root) return;
-    if (widget_dispatch_key(ui->root, e))
+    if (widget_dispatch_key(ui->root, e)) {
         waylandui_redraw(ui);
+        return;
+    }
+    /* not consumed by any widget — fire fallback */
+    if (ui->fallback_key_fn)
+        ui->fallback_key_fn(e, ui->fallback_key_userdata);
 }
 
 static void mouse_button_cb(wl_mouse_button_event_t *e, void *userdata) {
@@ -128,6 +135,11 @@ void waylandui_destroy(waylandui_t *ui) {
 
 void waylandui_on_key(waylandui_t *ui, wl_key_fn fn, void *userdata) {
     wl_app_on_key(ui->app, fn, userdata);
+}
+
+void waylandui_on_unhandled_key(waylandui_t *ui, wl_key_fn fn, void *userdata) {
+    ui->fallback_key_fn       = fn;
+    ui->fallback_key_userdata = userdata;
 }
 
 void waylandui_on_mouse_button(waylandui_t *ui, wl_mouse_button_fn fn, void *userdata) {
